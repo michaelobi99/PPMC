@@ -1,0 +1,8 @@
+/calgarycorpus
+/x64
+*.filters
+*.txt
+*.user
+*.vcxproj
+enwik9
+calgary
