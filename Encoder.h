@@ -67,7 +67,7 @@ void flushArithmeticEncoder(std::unique_ptr<stl::BitFile>& output, USHORT high, 
 void compressFile(std::fstream& input, std::unique_ptr<stl::BitFile>& output, uint32_t order, const std::string& fileType, size_t fileSize) {
 	int c{};
 	USHORT low{ 0 }, high{ 0xffff }, underflowBits{ 0 };
-	originalSize = fileSize / 1024;
+	originalSize = std::ceil(fileSize / float(1024));
 	bitsWritten = 0;
 	Symbol s;
 	initializeModel(order);

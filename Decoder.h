@@ -50,7 +50,7 @@ std::string initialize(std::unique_ptr<stl::BitFile>& input, uint32_t& order) {
 		input->file.get(c);
 		if (c == 0) break;
 		fileType.push_back(c);
-		if (i++ == 16) {
+		if (++i == 16) {
 			printf("ERROR: File format not recognized\n");
 			exit(1);
 		}
@@ -58,13 +58,16 @@ std::string initialize(std::unique_ptr<stl::BitFile>& input, uint32_t& order) {
 	return fileType;
 }
 
-void expandFile(std::unique_ptr<stl::BitFile>& input, std::fstream& output, uint32_t order) {
+void expandFile(std::unique_ptr<stl::BitFile>& input, std::fstream& output, uint32_t order, size_t fileSize) {
 	Symbol s;
 	int c{};
 	USHORT low{ 0 }, high{ 0xffff }, code{ 0 };
 	long index{ 0 };
 	initializeModel(order);
 	initializeArithmeticDecoder(input, code);
+	uint64_t counter{ 0 };
+	size_t sizeInKB{ 0 };
+	fileSize = std::ceil(fileSize / float(1024));
 	for (;;) {
 		do {
 			getSymbolScale(s);
@@ -75,6 +78,14 @@ void expandFile(std::unique_ptr<stl::BitFile>& input, std::fstream& output, uint
 		if (c == END_OF_STREAM)
 			break;
 		output.put(c);
+		++counter;
+
+		if (counter == 10240) {
+			sizeInKB += 10;
+			std::cout << sizeInKB << "KB/" << fileSize << "KB\r";
+			counter = 0;
+		}
 		updateModel(c);
 	}
+	std::cout << std::ceil(sizeInKB + (counter / float(1024))) << "KB/" << fileSize << "KB\n";
 }

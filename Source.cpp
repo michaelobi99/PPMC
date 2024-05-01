@@ -101,12 +101,11 @@ void decode(const fs::path& file) {
 		}
 		std::fstream output(originalFile, std::ios_base::out | std::ios_base::binary);
 		timer.Start();
-		expandFile(input, output, order);
+		expandFile(input, output, order, fileSize(fs::path(file)));
 		timer.Stop();
 		printf("PPM decoding time = %f seconds\n", timer.time());
 		stl::closeInputBitFile(input);
 		output.close();
-		// print file sizes
 	}
 	catch (stl::FileError const& error) {
 		std::cout << error.what()<<"\n";
