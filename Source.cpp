@@ -84,15 +84,15 @@ void encode(uint32_t order, const fs::path& ifile, const fs::path& ofile = fs::p
 }
 
 
-void decode(const fs::path& file) {
+void decode(const fs::path& ifile, const fs::path& ofile = fs::path()) {
 	auto timer = Timer();
 	std::uint32_t order{0};
-	std::string filename = file.filename().string();
-	std::string inputFile = (file.parent_path() /= file.filename()).string();
+	std::string filename = ifile.filename().string();
+	std::string inputFile = (ifile.parent_path() /= ifile.filename()).string();
 	std::string originalFile;
 	std::string fileType;
 	std::string extension = ".ppmc";
-	if (file.extension().string() != extension) {
+	if (ifile.extension().string() != extension) {
 		printf("Error: File not recognized\n");
 		exit(1);
 	}
@@ -100,16 +100,22 @@ void decode(const fs::path& file) {
 		auto input = stl::OpenInputBitFile(inputFile);
 		fileType = initialize(input, order);
 		if (size_t idx = filename.find_last_of('.'); idx == std::string::npos) {
-			originalFile = (file.parent_path() /= fs::path{ filename + fileType }).string();
+			if (ofile.empty())
+				originalFile = (ifile.parent_path() /= fs::path{ filename + fileType }).string();
+			else
+				originalFile = (ofile.parent_path() /= ofile.filename() /= fs::path{ filename + fileType }).string();
 		}
 		else {
-			originalFile = (file.parent_path() /= fs::path{ filename.substr(0, idx) + fileType }).string();
+			if (ofile.empty())
+				originalFile = (ifile.parent_path() /= fs::path{ filename.substr(0, idx) + fileType }).string();
+			else
+				originalFile = (ofile.parent_path() /= ofile.filename() /= fs::path{ filename.substr(0, idx) + fileType }).string();
 		}
 		std::fstream output(originalFile, std::ios_base::out | std::ios_base::binary);
 		timer.Start();
-		expandFile(input, output, order, fileSize(fs::path(file)));
+		expandFile(input, output, order, fileSize(fs::path(ifile)));
 		timer.Stop();
-		printf("PPM decoding time = %f seconds\n", timer.time());
+		printf("%s decoding time = %f seconds\n\n", filename.c_str(), timer.time());
 		stl::closeInputBitFile(input);
 		output.close();
 	}
@@ -149,10 +155,9 @@ int main(int argc, char* argv[]) {
 			}
 			else if (fs::is_directory(file)) {
 				fs::path compressedFolder = fs::path{ (file.parent_path() /= file.filename()).string() + ".ppmc" };
-				bool success = fs::create_directory(compressedFolder);
-				if (!success) {
+				if (!fs::create_directory(compressedFolder)) {
 					std::cerr << "Error creating folder\n";
-					return 1;
+					exit(1);
 				}
 				for (fs::path f : fs::directory_iterator(file)) {
 					encode(order, f, compressedFolder);
@@ -175,19 +180,19 @@ int main(int argc, char* argv[]) {
 				decode(file);
 			}
 			else if (fs::is_directory(file)) {
-				std::string directoryName = file.filename().string();
-				if (!directoryName.ends_with(".ppmc")) {
+				if (!file.filename().string().ends_with(".ppmc")) {
 					printf("Error: Compressed folder not recognized\n");
+					exit(1);
 				}
-				/*fs::path compressedFolder = fs::path{ (file.parent_path() /= file.filename()).string() + ".ppmc" };
-				bool success = fs::create_directory(compressedFolder);
-				if (!success) {
+				std::string compressedFolderName = file.filename().string();
+				compressedFolderName = compressedFolderName.substr(0, std::size(compressedFolderName) - 5);
+				fs::path folder = fs::path{ (file.parent_path() /= fs::path{compressedFolderName}).string()};
+				if (!fs::create_directory(folder)) {
 					std::cerr << "Error creating folder\n";
-					return 1;
+					exit(1);
 				}
-				std::cout << "Got here\n";*/
 				for (auto& f : fs::directory_iterator(file)) {
-					decode(f);
+					decode(f, folder);
 				}
 			}
 			else {
