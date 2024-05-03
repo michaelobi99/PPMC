@@ -38,19 +38,25 @@ void help() {
 	exit(1);
 }
 
-void encode(fs::path& file, uint32_t order) {
+void encode(uint32_t order, const fs::path& ifile, const fs::path& ofile = fs::path()) {
 	auto timer = Timer();
-	std::string filename = file.filename().string();
-	std::string inputFile = (file.parent_path() /= file.filename()).string();
+	std::string filename = ifile.filename().string();
+	std::string inputFile = (ifile.parent_path() /= ifile.filename()).string();
 	std::string compressedFile;
 	std::string extension = ".ppmc";
 	std::string fileType;
 	if (size_t idx = filename.find_last_of('.'); idx == std::string::npos) {
-		compressedFile = (file.parent_path() /= fs::path{ filename + extension }).string();
+		if (ofile.empty())
+			compressedFile = (ifile.parent_path() /= fs::path{ filename + extension }).string();
+		else
+			compressedFile = (ofile.parent_path() /= ofile.filename() /= fs::path{ filename + extension }).string();
 	}
 	else {
 		fileType = filename.substr(idx, std::size(filename) - idx);
-		compressedFile = (file.parent_path() /= fs::path{ filename.substr(0, idx) + extension }).string();
+		if (ofile.empty())
+			compressedFile = (ifile.parent_path() /= fs::path{ filename.substr(0, idx) + extension }).string();
+		else
+			compressedFile = (ofile.parent_path() /= ofile.filename() /= fs::path{ filename.substr(0, idx) + extension }).string();
 	}
 	try {
 		float avgEff{ 0.0 };
@@ -139,12 +145,17 @@ int main(int argc, char* argv[]) {
 		for (; i < argc; ++i) {
 			auto file = fs::path(argv[i]);
 			if (fs::is_regular_file(file)) {
-				encode(file, order);
+				encode(order, file);
 			}
 			else if (fs::is_directory(file)) {
-				printf("%s\n", file.filename().string().c_str());
+				fs::path compressedFolder = fs::path{ (file.parent_path() /= file.filename()).string() + ".ppmc" };
+				bool success = fs::create_directory(compressedFolder);
+				if (!success) {
+					std::cerr << "Error creating folder\n";
+					return 1;
+				}
 				for (fs::path f : fs::directory_iterator(file)) {
-					encode(f, order);
+					encode(order, f, compressedFolder);
 				}
 			}
 			else {
@@ -164,6 +175,17 @@ int main(int argc, char* argv[]) {
 				decode(file);
 			}
 			else if (fs::is_directory(file)) {
+				std::string directoryName = file.filename().string();
+				if (!directoryName.ends_with(".ppmc")) {
+					printf("Error: Compressed folder not recognized\n");
+				}
+				/*fs::path compressedFolder = fs::path{ (file.parent_path() /= file.filename()).string() + ".ppmc" };
+				bool success = fs::create_directory(compressedFolder);
+				if (!success) {
+					std::cerr << "Error creating folder\n";
+					return 1;
+				}
+				std::cout << "Got here\n";*/
 				for (auto& f : fs::directory_iterator(file)) {
 					decode(f);
 				}
